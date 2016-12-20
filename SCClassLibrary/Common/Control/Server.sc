@@ -44,7 +44,7 @@ ServerOptions {
 	var <>pingsBeforeConsideredDead = 5;
 
 
-	var <>maxLogins = 1;
+	var <>maxLogins = 32;
 
 	var <>recHeaderFormat="aiff";
 	var <>recSampleFormat="float";
@@ -353,7 +353,11 @@ Server {
 	}
 
 	initTree {
-		nodeAllocator = NodeIDAllocator(clientID, options.initialNodeID);
+		// nodeAllocator = NodeIDAllocator(clientID, options.initialNodeID);
+		nodeAllocator = NodeIDAlloc2(
+			clientID,
+			options.initialNodeID,
+			options.maxLogins);
 		this.sendMsg("/g_new", defaultGroup.nodeID, 0, 0);
 		tree.value(this);
 		ServerTree.run(this);
@@ -410,8 +414,12 @@ Server {
 		+ (numAudioBuses * clientOffset)
 		+ options.reservedNumAudioBusChannels;
 
-		"controlBusOffset: % \n".postf(controlBusOffset);
-		"audioBusOffset: % \n".postf(audioBusOffset);
+		"%: % controlBuses starting at %. \n".postf(
+			this.name, numControlBuses, controlBusOffset
+		);
+		"%: % audioBuses starting at %. \n".postf(
+			this.name, numAudioBuses, audioBusOffset
+		);
 
 		controlBusAllocator = ContiguousBlockAllocator.new(numControlBuses, controlBusOffset);
 
@@ -426,6 +434,10 @@ Server {
 		+ options.reservedNumBuffers;
 		bufferAllocator = ContiguousBlockAllocator.new(numBuffers, bufferOffset);
 	}
+
+	numBuffers { ^bufferAllocator.size }
+	numAudioBuses { ^audioBusAllocator.size }
+	numControlBuses { ^controlBusAllocator.size }
 
 	newScopeBufferAllocators {
 		if(isLocal) {

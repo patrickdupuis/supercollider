@@ -3,6 +3,23 @@ categories:: Server
 summary:: How to use remote servers
 related:: Classes/Server, Classes/NetAddr
 
+
+TO DO:
+
+* s.nodeAllocator still assumes 32
+
+* Volume is global on server, but only seen locally.
+? sync one volume object across all remote server objects?
+? make volume apply only to each client's defaultGroup?
+? allow switching between these two options?
+
+* When volume is nonzero, Cmd-. creates multiple volume synths
+
+* Ndef runs on Group 1 always - how to replace hard default 1
+with defaultGroup?
+
+
+
 code::
 
 // set up a multichannel server for several clients
@@ -14,6 +31,7 @@ s.options.numPublicAudioBusChannels;
 s.options.numPrivateAudioBusChannels;
 s.options.firstPrivateBus;
 
+// fixed limit was 32
 s.options.maxLogins = 32;
 )
 
@@ -31,52 +49,91 @@ s.clientID = \abc; // illegal
 s.clientID = -1;
 s.clientID = 33;
 
+// test lots of remote clients:
+s.options.maxLogins = 200;
+s.clientID = 100;
+s.bufferAllocator.dump;
+s.audioBusAllocator.dump;
+
+s.nodeAllocator ...
+
+2 ** 30 / 1000
+
 // back to default
 s.options.maxLogins = 32; s.clientID = 1;
 s.boot;
 s.queryAllNodes; // default group nodeID is clientID
 s.clientID;
+
 s.makeWindow;
+s.volume.volume_(-3);
 s.scope;
+s.queryAllNodes; // default group nodeID is clientID
+s.defaultGroup.queryTree; // query just my group
 
-
-// three ways to make sound, all go to group 1
+// three ways to make sound, all go to s.defaultGroup, 1
 x = { Saw.ar(330) * 0.1 }.play(s);
 s.queryAllNodes;
-(amp: 0.2, dur: 5).play;
+e = (amp: 0.2, dur: inf).play;
 s.queryAllNodes;
 Ndef(\noyz, { BrownNoise.ar([0.1, 0.1]) }).play;
 s.queryAllNodes;
+s.defaultGroup.queryTree; // query just my group
+
+// turn them off again
+e.release;
 x.free;
 Ndef(\noyz).end;
 
-
+// now fake being on a remote client by creating
+// a second server object, as if it were remote:
 r = Server.remote(\pseudo12, s.addr, s.options, 12);
 r.defaultGroup; // group 12, like clientID
-s.queryAllNodes;
+s.queryAllNodes; // group 12 present on server
 
-r.boot;  // don't need boot, assumes already running
+
+r.boot;	// don't need to boot, reports -> already running
+		// usually one cannot boot a really remote server
+
 r.makeWindow;
+	// window shows same data as s.window,
+	// except volume is not synced
+// Q: should volume move to defaultGroup, not rootnode?
 
-s.queryAllNodes; // sees all nodes on server not just my own
+s.queryAllNodes; // sees all nodes of all clients on server
+r.queryAllNodes; // same for remote server
 
-// three ways to make sound, all go to group 1
+// same three ways to make sound, all go to group 12 now
+s.defaultGroup.queryTree;
+r.defaultGroup.queryTree;
 
 y = { Saw.ar * 0.1 }.play(r);
 r.queryAllNodes;
-(amp: 0.2, dur: 5, server: r).play;
+e = (amp: 0.2, dur: inf, server: r).play;
 r.queryAllNodes;
+// Ndef goes to the wrong group - why?
 Ndef(\noyz -> r.name, { Dust.ar([20, 20]) }).play;
 s.queryAllNodes;
-y.free;
-Ndef(\noyz -> r.name).end;
+
+// compare nodes in the two defaultGroups
+s.defaultGroup.queryTree;
+r.defaultGroup.queryTree;
+
+// turn them off again
+e.release;
+x.free;
+Ndef(\noyz).end;
 s.queryAllNodes;
+
 
 // buffers work on either server
 p = Platform.resourceDir +/+ "sounds/a11wlk01.wav";
 a = Buffer.read(s, p);
 a.play;
+s.queryAllNodes;
 
 b = Buffer.read(r, p);
 b.play;
+s.queryAllNodes;
 ::
+

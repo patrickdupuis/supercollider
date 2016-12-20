@@ -195,7 +195,7 @@ ContiguousBlock {
 
 // second arg was pos, but clientID is more important
 ContiguousBlockAllocator {
-	var	size, clientOffset, pos, top, array, freed;
+	var	<size, <clientOffset, pos, top, array, freed;
 
 	*new { |size, clientOffset = 0, pos = 0|
 		^super.newCopyArgs(size,
