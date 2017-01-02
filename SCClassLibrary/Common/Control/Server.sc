@@ -313,7 +313,7 @@ Server {
 	init { |argName, argAddr, argOptions, argClientID|
 		this.addr = argAddr;
 
-		options = options ?? { ServerOptions.new; };
+		options = argOptions  ?? { ServerOptions.new; };
 		argClientID !? { userSpecifiedClientID = true; };
 		clientID = argClientID ? 0;
 
@@ -354,7 +354,7 @@ Server {
 			options.maxLogins
 		);
 
-		this.sendMsg("/g_new", defaultGroup.nodeID, 0, 0);
+		// this.sendMsg("/g_new", defaultGroup.nodeID, 0, 0);
 		tree.value(this);
 		ServerTree.run(this);
 	}
@@ -369,7 +369,7 @@ Server {
 			^this
 		};
 		// must be within 1 .. maxLogins (e.g. 32)
-		if (val < 0 or: { val > options.maxLogins - 1 }) {
+		if (val < 0 or: { val >= options.maxLogins }) {
 			"Server % couldn't set clientID to: % - outside range of maxLogins: %."
 			.format(this, val, [0, options.maxLogins - 1]).warn;
 			^this
@@ -409,20 +409,20 @@ Server {
 		+ (numAudioBuses * clientOffset)
 		+ options.reservedNumAudioBusChannels;
 
-		"controlBusOffset: % \n".postf(controlBusOffset);
-		"audioBusOffset: % \n".postf(audioBusOffset);
+		"control numBuses: % offset: % \n".postf(numControlBuses, controlBusOffset);
+		"audio   numBuses: % offset: % \n".postf(numAudioBuses, audioBusOffset);
 
 		controlBusAllocator = ContiguousBlockAllocator.new(numControlBuses, controlBusOffset);
-
 		audioBusAllocator = ContiguousBlockAllocator.new(numAudioBuses, audioBusOffset);
 	}
 
 	newBufferAllocators {
-		var numClients = options.maxLogins ? 1;
+		var numClients = options.maxLogins;
 		var clientOffset = this.clientID;
 		var numBuffers = options.numBuffers div: numClients;
 		var bufferOffset = (numBuffers * clientOffset)
 		+ options.reservedNumBuffers;
+		"numBuffers: % offset: %\n".postf(numBuffers, bufferOffset);
 		bufferAllocator = ContiguousBlockAllocator.new(numBuffers, bufferOffset);
 	}
 
