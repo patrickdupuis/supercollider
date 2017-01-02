@@ -278,6 +278,28 @@ Server {
 	}
 
 	*new { |name, addr, options, clientID|
+		var foundServer = named.at(name.asSymbol);
+		var args = [addr, options, clientID];
+
+		if (foundServer.notNil) {
+			if (args.any(_.notNil)) {
+				warn("Server % already exists, ignoring args %.".format(name, args));
+			};
+			^foundServer
+		};
+
+		options = options ?? { ServerOptions.new; };
+
+		clientID !? {
+			if (clientID >= options.maxLogins) {
+				warn("%: clientID of % is at or above options.maxLogins of %!"
+					"\nplease set clientID within range, or increase maxLogins."
+					.format(thisMethod, clientID, options.maxLogins)
+				);
+				^nil
+			};
+		};
+
 		^super.new.init(name, addr, options, clientID)
 	}
 
