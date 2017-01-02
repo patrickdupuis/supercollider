@@ -247,6 +247,7 @@ Server {
 
 	var <nodeAllocator, <controlBusAllocator, <audioBusAllocator, <bufferAllocator, <scopeBufferAllocator;
 
+	var <defaultGroup;
 	var <>tree;
 
 	var <syncThread, <syncTasks;
@@ -290,8 +291,12 @@ Server {
 	init { |argName, argAddr, argOptions, argClientID|
 		this.addr = argAddr;
 		options = argOptions ? ServerOptions.new;
-		clientID = argClientID ? 0;
+
 		if(argClientID.notNil) { userSpecifiedClientID = true };
+		clientID = argClientID ? 0;
+
+		defaultGroup = Group.basicNew(this, clientID);
+		this.sendMsg("/g_new", defaultGroup.nodeID, 0, 0);
 
 		this.newAllocators;
 
@@ -325,7 +330,7 @@ Server {
 
 	initTree {
 		nodeAllocator = NodeIDAllocator(clientID, options.initialNodeID);
-		this.sendMsg("/g_new", 1, 0, 0);
+		this.sendMsg("/g_new", defaultGroup.nodeID, 0, 0);
 		tree.value(this);
 		ServerTree.run(this);
 	}
@@ -661,10 +666,6 @@ Server {
 		^Buffer.cachedBufferAt(this, bufnum)
 	}
 
-	defaultGroup {
-		^Group.basicNew(this, 1)
-	}
-
 	inputBus {
 		^Bus(\audio, this.options.numOutputBusChannels, this.options.numInputBusChannels, this)
 	}
@@ -881,7 +882,7 @@ Server {
 	}
 
 	freeAll {
-		this.sendMsg("/g_freeAll", 0);
+		this.sendMsg("/g_freeAll", defaultGroup.nodeID);
 		this.sendMsg("/clearSched");
 		this.initTree;
 	}
