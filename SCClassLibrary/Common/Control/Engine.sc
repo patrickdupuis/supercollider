@@ -1,5 +1,5 @@
-
-NodeIDAllocator {
+// rename to NodeIDAllocator32 to compare with new implementation
+NodeIDAllocator32 {
 	var <user, initTemp, temp, perm, mask, permFreed;
 	// support 32 users
 
@@ -37,6 +37,73 @@ NodeIDAllocator {
 	}
 }
 
+/* new implementation:
+human-readable mask, a la <clientID>..zeroes..<nodeID>
+remove hardcoded limit of 32
+*/
+
+NodeIDAllocator {
+	classvar <maxTotalNumID = 2147483647.0; // 2 ** 31 - 1
+
+	var <userID, <numPerm, <numUsers;
+	var <size, <idOffset, <maxPermID;
+	var tempCount = -1, permCount = 1, permFreed;
+
+	*new { arg userID = 1, numPerm = 1000, numUsers = 32;
+		^super.newCopyArgs(userID, numPerm, numUsers).reset
+	}
+
+	reset {
+		// optimize for human readability:
+		// 10 ** 8 ids for 1 user, ** 7 for < 10, ** 6 for < 100
+		// prefix 20000... is for clientID 2, 120000... for 12 etc
+
+		var numPrefixDigits = (maxTotalNumID / numUsers).log10.floor;
+
+		size = (10 ** numPrefixDigits).asInteger;
+		idOffset = size * userID;
+
+		permFreed = IdentitySet.new;
+		maxPermID = idOffset + numPerm - 1;
+		tempCount = -1;
+		permCount = 1;
+	}
+
+	alloc {
+		tempCount = tempCount + 1;
+		^(numPerm + tempCount).wrap(numPerm, size) + idOffset;
+	}
+
+	isPerm { |num|
+		// 0 and 1 are also permanent
+		^num.inclusivelyBetween(idOffset, maxPermID);
+	}
+
+	allocPerm {
+		var perm;
+		if(permFreed.size > 0) {
+			perm = permFreed.minItem;
+			permFreed.remove(perm);
+			^perm
+		};
+
+		permCount = (permCount + 1).min(numPerm);
+		perm = permCount;
+		if (perm >= numPerm) {
+			warn("%: cannot create more than % permanent ids."
+				"\nPlease free some permanent ids first,"
+				"or set lowestTempID higher."
+				.format(thisMethod, perm)
+			);
+			^nil
+		};
+		^perm + idOffset
+	}
+
+	freePerm { |id|
+		if (id.isPerm) { permFreed.add(id) }
+	}
+}
 
 PowerOfTwoBlock {
 	var <address, <size, <>next;

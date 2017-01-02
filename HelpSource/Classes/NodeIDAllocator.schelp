@@ -1,0 +1,90 @@
+TITLE:: NodeIDAllocator
+summary:: allocate permanent and temporary nodes on a server
+categories:: Undocumented classes
+related:: Classes/Server
+
+DESCRIPTION::
+
+First code examples:
+
+code::
+// default settings:
+n = NodeIDAllocator(0, 1000, 32);
+n.dump;
+// temp nodes: 1000, 1001, 1002 etc
+n.alloc;
+n.alloc;
+n.alloc;
+
+// test the offset for various clientIDs:
+m = NodeIDAllocator(12, 1000, 200);
+m.alloc;
+m.alloc;
+l = NodeIDAllocator(31, 1000, 32);
+l.alloc;
+k = NodeIDAllocator(255, 1000, 256);
+k.alloc;
+
+// the nodeID ranges are intended to be humanly readable:
+// -> 120001001
+// 12 0000 is prefix for clientID twelve,
+// temp nodeIDs go  from 12 000 1000 up to 12 999 9999
+// permanent IDs go from 12 000 0002 up to 12 000 0999
+
+// with 2000 clients, prefix gets longer:
+m = NodeIDAllocator(123, 1000, 2000);
+m.alloc;
+// -> 123001000 ...
+// 123 00 is prefix for clientID 123,
+// temp nodeIDs go from 123_000_1000 up to 123_999_9999
+
+// test permanent nodeIDs
+n.isPerm(2)
+n.isPerm(999)
+n.isPerm(1000)
+// leave 0 for rootnode and 1 for defaultgroup, then:
+n.allocPerm;
+// take too many -> stops at 1000
+1000.do { n.allocPerm };
+
+m.isPerm(2) // false
+// add prefix => true
+m.isPerm(123000002)
+
+// second tempID
+m.isPerm(123001001)
+m.allocPerm;
+1000.do { m.allocPerm };
+m.reset;
+
+10.do { m.allocPerm.postln };
+
+::
+
+CLASSMETHODS::
+
+METHOD:: new
+argument:: userID
+argument:: numPerm
+argument:: numUsers
+
+
+INSTANCEMETHODS::
+
+METHOD:: freePerm
+argument:: id
+
+METHOD:: allocPerm
+
+METHOD:: reset
+
+METHOD:: userID
+
+METHOD:: alloc
+
+
+EXAMPLES::
+
+code::
+_some_example_code_
+::
