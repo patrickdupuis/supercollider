@@ -1,15 +1,17 @@
 BusPlug : AbstractFunction {
 
-	var <server, <bus;
-	var <>monitor, <>parentGroup; // if nil, uses default group
+	var <server, <>parentGroup; // if nil, uses default group
+	var <>monitor,  <bus;
 	var busArg; // cache for "/s_new" bus arg
 	var busLoaded = false;
 	var <>reshaping; // \elastic, \expanding
 
 	classvar <>defaultNumAudio=2, <>defaultNumControl=1, <>defaultReshaping;
 
-	*new { | server |
-		^super.newCopyArgs(server ? Server.default);
+	*new { | server, parentGroup|
+		server = server ? Server.default;
+		parentGroup = parentGroup ?? server.defaultGroup;
+		^super.newCopyArgs(server, parentGroup);
 	}
 
 	*for { | bus |
@@ -317,7 +319,13 @@ BusPlug : AbstractFunction {
 			^this
 		};
 		this.newMonitorToBundle(bundle, numChannels);
-		group = group ?? { if(parentGroup.isPlaying) { parentGroup } };
+		group = group ?? {
+			if(parentGroup.isPlaying) {
+				parentGroup
+			} {
+				this.asTarget
+			}
+		};
 		if(numChannels.notNil) { out = (0..numChannels-1) + (out ? 0) };
 		monitor.playNBusToBundle(bundle, out, nil, nil, bus, vol, fadeTime, group, addAction, multi);
 	}
@@ -329,7 +337,13 @@ BusPlug : AbstractFunction {
 			^this
 		};
 		this.newMonitorToBundle(bundle, ins !? { ins.asArray.maxItem + 1 });
-		group = group ?? { if(parentGroup.isPlaying) { parentGroup } };
+		group = group ?? {
+			if(parentGroup.isPlaying) {
+				parentGroup
+			} {
+				this.asTarget
+			}
+		};
 		monitor.playNBusToBundle(bundle, outs, amps, ins, bus, vol, fadeTime, group, addAction);
 	}
 

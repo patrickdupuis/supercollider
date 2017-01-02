@@ -421,7 +421,7 @@ Event : Environment {
 					~finish.value(currentEnvironment);
 
 					server = ~server ?? { Server.default };
-					~group = ~group ?? { server.defaultGroup };
+					~group = ~group.value ?? { server.defaultGroup };
 
 					tempo = ~tempo;
 					if (tempo.notNil) {
