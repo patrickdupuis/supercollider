@@ -163,7 +163,7 @@ ServerStatusWatcher {
 					alive = false;
 					server.sendStatusMsg;
 					aliveThreadPeriod.wait;
-					this.updateRunningState(alive);
+					this.updateRunningState(alive or: server.pidRunning);
 				};
 			}.play(AppClock);
 			aliveThread
