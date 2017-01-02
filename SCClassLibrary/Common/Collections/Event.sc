@@ -241,7 +241,8 @@ Event : Environment {
 
 				synthLib: nil,
 
-				group: 1,
+				// group: 1,
+				group: { ~server.defaultGroup },
 				out: 0,
 				addAction: 0,
 
@@ -357,7 +358,8 @@ Event : Environment {
 				delta: 0,
 
 				addAction: 0,
-				group: 1,
+				// group: 1,
+				group: { ~server.defaultGroup },
 				latency: 0.2,
 				instrument: \default,
 				hasGate: true,
@@ -419,6 +421,7 @@ Event : Environment {
 					~finish.value(currentEnvironment);
 
 					server = ~server ?? { Server.default };
+					~group = ~group ?? { server.defaultGroup };
 
 					tempo = ~tempo;
 					if (tempo.notNil) {
