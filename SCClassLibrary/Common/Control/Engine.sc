@@ -30,6 +30,7 @@ NodeIDAllocator32 {
 		}
 		^x | mask
 	}
+
 	freePerm { |id|
 			// should not add a temp node id to the freed-permanent collection
 		id = id bitAnd: 0x03FFFFFF;

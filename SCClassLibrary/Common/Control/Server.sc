@@ -312,13 +312,10 @@ Server {
 
 	init { |argName, argAddr, argOptions, argClientID|
 		this.addr = argAddr;
-		options = argOptions ? ServerOptions.new;
 
-		if(argClientID.notNil) { userSpecifiedClientID = true };
+		options = options ?? { ServerOptions.new; };
+		argClientID !? { userSpecifiedClientID = true; };
 		clientID = argClientID ? 0;
-
-		defaultGroup = Group.basicNew(this, clientID);
-		this.sendMsg("/g_new", defaultGroup.nodeID, 0, 0);
 
 		this.newAllocators;
 
@@ -371,10 +368,10 @@ Server {
 			.format(name, val.asCompileString).warn;
 			^this
 		};
-		// must be within 0 and maxLogins - 1
-		if (val < 0 or: { val >= options.maxLogins }) {
-			"Server % couldn't set clientID to: % - out of range %."
-			.format(this, val, [1, options.maxLogins]).warn;
+		// must be within 1 .. maxLogins (e.g. 32)
+		if (val < 0 or: { val > options.maxLogins - 1 }) {
+			"Server % couldn't set clientID to: % - outside range of maxLogins: %."
+			.format(this, val, [0, options.maxLogins - 1]).warn;
 			^this
 		};
 		clientID = val;
@@ -382,8 +379,6 @@ Server {
 		.postf(this, clientID);
 		this.newAllocators;
 
-		// defaultGroups get nodeIDs from 1 .. maxLogins
-		defaultGroup = Group.basicNew(this, clientID);
 		this.initTree;
 	}
 
@@ -393,48 +388,42 @@ Server {
 		this.newBufferAllocators;
 		this.newScopeBufferAllocators;
 		NotificationCenter.notify(this, \newAllocators);
+
 	}
 
 	newNodeAllocators {
 		nodeAllocator = NodeIDAllocator(clientID, options.initialNodeID)
+		defaultGroup = Group.basicNew(this, nodeAllocator.idOffset + 1);
+		this.sendMsg("/g_new", defaultGroup.nodeID, 0, 0);
 	}
 
 	newBusAllocators {
-		var numControl, numAudio;
-		var controlBusOffset, audioBusOffset;
-		var offset = this.calcOffset;
-		var n = options.maxLogins ? 1;
+		var numClients = options.maxLogins ? 1;
+		var clientOffset = this.clientID;
+		var numControlBuses = options.numControlBusChannels div: numClients;
+		var numAudioBuses = options.numPrivateAudioBusChannels div: numClients;
+		var controlBusOffset = (numControlBuses * clientOffset)
+		+ options.reservedNumControlBusChannels;
 
-		numControl = options.numControlBusChannels div: n;
-		numAudio = options.numPrivateAudioBusChannels div: n;
+		var audioBusOffset = options.numPublicAudioBusChannels
+		+ (numAudioBuses * clientOffset)
+		+ options.reservedNumAudioBusChannels;
 
-		controlBusOffset = numControl * offset + options.reservedNumControlBusChannels;
-		audioBusOffset = options.firstPrivateBus + (numAudio * offset) + options.reservedNumAudioBusChannels;
+		"controlBusOffset: % \n".postf(controlBusOffset);
+		"audioBusOffset: % \n".postf(audioBusOffset);
 
-		controlBusAllocator =
-		ContiguousBlockAllocator.new(numControl, controlBusOffset);
+		controlBusAllocator = ContiguousBlockAllocator.new(numControlBuses, controlBusOffset);
 
-		audioBusAllocator =
-		ContiguousBlockAllocator.new(numAudio, audioBusOffset);
+		audioBusAllocator = ContiguousBlockAllocator.new(numAudioBuses, audioBusOffset);
 	}
-
 
 	newBufferAllocators {
-		var bufferOffset;
-		var offset = this.calcOffset;
-		var n = options.maxLogins ? 1;
-		var numBuffers = options.numBuffers div: n;
-		bufferOffset = numBuffers * offset + options.reservedNumBuffers;
-		bufferAllocator =
-		ContiguousBlockAllocator.new(numBuffers, bufferOffset);
-	}
-
-	calcOffset {
-		if(options.maxLogins.isNil) { ^0 };
-		if(clientID > (options.maxLogins - 1)) {
-			"Client ID exceeds maxLogins. Some buses and buffers may overlap for remote server: %".format(this).warn;
-		};
-		^clientID % options.maxLogins
+		var numClients = options.maxLogins ? 1;
+		var clientOffset = this.clientID;
+		var numBuffers = options.numBuffers div: numClients;
+		var bufferOffset = (numBuffers * clientOffset)
+		+ options.reservedNumBuffers;
+		bufferAllocator = ContiguousBlockAllocator.new(numBuffers, bufferOffset);
 	}
 
 	newScopeBufferAllocators {
