@@ -41,12 +41,13 @@ unixCmd("killall scsynth supernova");
 s.addr.portIsFree;
 // regular boot, should work fine
 s.boot;
-// now simulate server crash with unixCmd, not Server.killAll;
+
+// now test killing the server hard
 unixCmd("killall scsynth supernova");
 s.serverRunning;
 
 
-// now demonstrate the zombie problem:
+// next, demonstrate the zombie problem:
 
 unixCmd("killall scsynth supernova");
 // start an scsynth instance by hand to simulate a zombie:
@@ -54,10 +55,13 @@ x = (Server.program + s.options.asOptionsString(57110)).unixCmd;
 // now server port is used, and regular boot would fail ...
 s.addr.portIsFree;
 
-// recover option 1 is 'failAndAsk', which informs about options 2-4:
+// RECOVER OPTION 1 : 'failAndAsk'
 ServerRecover.default.cs;
 s.boot;
-//////////// this posts the options: //////////////
+
+/********** this posts the other options: **********
+// dont do them now, examples follow below!
+
 // ServerRecover 'failAndAsk' for server 'localhost' - options:
 // There is already a server using port 57110. You can
 // * force-reboot the server:
@@ -66,35 +70,48 @@ ServerRecover.default = 'reboot'; s.boot;
 ServerRecover.default = 'useFreePort;' s.boot;
 // * or hijack the existing server:
 ServerRecover.default = 'hijack;' s.boot;
-//////////////////////////////////
+*********************/
 
 
-// recover option 2 is 'hijack' - assumes it is a zombie and reuses that,
+// RECOVER OPTION 2: 'hijack'
+// - assumes the found server is a zombie from before a lang crash
+// and hijacks control of it.
 ServerRecover.default = \hijack;
 // for annoyance, add a dangling note to the zombie
-s.addr.sendMsg("/s_new", \default, 1234);
+s.sendMsg("g_new", s.defaultGroup.nodeID, 1, 0);
+s.sendMsg("s_new", \default, 1234, 1, 1);
+s.queryAllNodes;
+
 // hijacking sends a freeAll command
 s.boot;
 s.serverRunning; // it knows it is running now
 s.pidRunning;    // and has been told its hijacked pid
 
+// simulate server crash:
 unixCmd("killall scsynth supernova");
 s.serverRunning; // knows it is dead
-s.pid;  		// and no pid anymore
+s.pid;  		// and has no pid anymore
 
 
-// recover option 3 is 'reboot' - this is safer:
-// kills the old scsynth, then boots the server.
-// create zombie first
+// RECOVER OPTION 3: 'reboot'
+// - this is safer: kills the old scsynth, and boots the server anew.
+
+// to test, create zombie first
 x = (Server.program + s.options.asOptionsString(57110)).unixCmd;
-ServerRecover.default = \reboot;
-s.boot;
+// add dangling note
+s.sendMsg("g_new", s.defaultGroup.nodeID, 1, 0);
+s.sendMsg("s_new", \default, 1234, 1, 1);
+s.queryAllNodes;
+// set to reboot mode, and boot
+ServerRecover.default = \reboot; s.boot;
 
-////////////// \reboot runs and posts TWICE - why? /////////////
+
+//TODO: \reboot runs and posts TWICE - why?
 
 
-// option 3 is 'useFreePort' - this is more polite:
-// other programs on this machine may use port 57110,
+// RECOVER OPTION 4: 'useFreePort'
+// - this is more polite:
+// other programs on the same computer may use port 57110,
 // for instance to run scsynth instances at the default port.
 // 'useFreePort'  finds a free port number, and boots server with that port.
 // Switching to a free port number by hand would also work.
@@ -102,12 +119,13 @@ unixCmd("killall scsynth supernova");
 x = (Server.program + s.options.asOptionsString(57110)).unixCmd;
 ServerRecover.default = \useFreePort;
 s.boot;
+s.addr; // NetAddr(127.0.0.1, 57109)
 
-// test case for multi-servers:
 
-(
+// bigger test case for multi-servers:
 // make sure there are no scsynth processed around
 unixCmd("killall scsynth supernova");
+(
 // Start three servers, as if by other programs, or zombies
 x = (Server.program + s.options.asOptionsString(57110)).unixCmd;
 x = (Server.program + s.options.asOptionsString(57109)).unixCmd;
@@ -116,7 +134,7 @@ x = (Server.program + s.options.asOptionsString(57108)).unixCmd;
 
 ServerRecover.default = \useFreePort;
 s.boot;
-s.addr; // moved port out of the way.
+s.addr; // moved port out of the way to NetAddr(127.0.0.1, 57107).
 
 
 ::

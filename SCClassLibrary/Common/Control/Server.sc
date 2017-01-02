@@ -392,7 +392,7 @@ Server {
 	}
 
 	newNodeAllocators {
-		nodeAllocator = NodeIDAllocator(clientID, options.initialNodeID)
+		nodeAllocator = NodeIDAllocator(clientID, options.initialNodeID);
 		defaultGroup = Group.basicNew(this, nodeAllocator.idOffset + 1);
 		this.sendMsg("/g_new", defaultGroup.nodeID, 0, 0);
 	}
