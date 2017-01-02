@@ -757,13 +757,33 @@ Server {
 
 	boot { | startAliveThread = true, recover = false, onFailure |
 
-		if(statusWatcher.unresponsive) {
-			"server '%' unresponsive, rebooting ...".format(this.name).postln;
-			this.quit(watchShutDown: false)
-		};
-		if(statusWatcher.serverRunning) { "server '%' already running".format(this.name).postln; ^this };
-		if(statusWatcher.serverBooting) { "server '%' already booting".format(this.name).postln; ^this };
+		if(this.serverRunning) { "server '%' already running".format(this.name).inform; ^this };
 
+		if(statusWatcher.serverBooting) {
+			"server '%' already booting ...".format(this.name).inform;
+			^this
+		};
+
+		if(this.unresponsive) {
+			"server '%' is unresponsive, rebooting ...".format(this.name).inform;
+			this.quit(watchShutDown: false);
+		};
+
+		if (this.addr.portIsFree(options.protocol, post: false)) {
+			//	"regular boot...".postln;
+			this.prBoot(startAliveThread, recover, onFailure);
+		} {
+			defer ({
+				ServerRecover.at(\foo).value(this, {
+					"ServerRecover.at(%) worked.\n".postf(ServerRecover.default);
+				}, {
+					"ServerRecover.at(%) failed??\n".postf(ServerRecover.default);
+				});
+			}, 0.5);
+		}
+	}
+
+	prBoot { | startAliveThread = true, recover = false, onFailure |
 
 		statusWatcher.serverBooting = true;
 
@@ -772,19 +792,11 @@ Server {
 			this.bootInit(recover);
 		}, onFailure: onFailure ? false);
 
-		if(remoteControlled.not) {
-			"You will have to manually boot remote server.".postln;
-		} {
-			this.prPingApp({
-				this.quit;
-				this.boot;
-			}, {
-				this.bootServerApp({
-					if(startAliveThread) { statusWatcher.startAliveThread }
-				})
-			}, 0.25);
-		}
+		this.bootServerApp({
+			if(startAliveThread) { statusWatcher.startAliveThread }
+		})
 	}
+
 
 	bootInit { | recover = false |
 		if(recover) { this.newNodeAllocators } { this.newAllocators };
@@ -797,14 +809,19 @@ Server {
 	}
 
 	bootServerApp { |onComplete|
+		var myprogram = program;
 		if(inProcess) {
 			"booting internal".postln;
 			this.bootInProcess;
 			pid = thisProcess.pid;
 		} {
 			this.disconnectSharedMemory;
-			pid = unixCmd(program ++ options.asOptionsString(addr.port), { statusWatcher.quit(watchShutDown:false) });
-			("booting server '%' on address: %:%").format(this.name, addr.hostname, addr.port.asString).postln;
+			pid = unixCmd(myprogram ++ options.asOptionsString(addr.port), {
+				"server '%': % process has ended.\n".postf(this.name, myprogram.basename);
+				statusWatcher.serverRunning = false;
+				statusWatcher.quit(watchShutDown:false)
+			});
+			("booting server '%' on address: %:%").format(this.name, addr.hostname, addr.port.asString).inform;
 			if(options.protocol == \tcp, { addr.tryConnectTCP(onComplete) }, onComplete);
 		}
 	}
@@ -893,8 +910,16 @@ Server {
 	*quitAll { |watchShutDown = true|
 		all.do { |server|
 			if(server.sendQuit === true) {
+
 				server.quit(watchShutDown: watchShutDown)
-			}
+			};
+			// temp fix, should eventually work without it
+			defer ({
+				// just to make sure
+				server.statusWatcher.stop;
+				server.statusWatcher.serverRunning = false;
+				[server, server.serverRunning].postln;
+			}, 0.1)
 		}
 	}
 
