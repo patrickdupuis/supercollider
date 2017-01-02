@@ -4,8 +4,7 @@ summary:: How to use remote servers
 related:: Classes/Server, Classes/NetAddr
 
 TO DO:
-
-* Ndef runs on Group 1 always - how to replace hard default 1 with defaultGroup?
+* Ndef.end tries to free wrong nodeIDs, see below
 
 code::
 
@@ -26,34 +25,27 @@ s.options.maxLogins = 32;
 
 // set clientID before booting.
 // (can also be changed after server is booted, but may lose track of id ranges)
-s.clientID = 1; // default
+s.clientID = 0; // default
 s.clientID = 2; // informs about change
-s.clientID = 32;
+s.clientID = (s.options.maxLogins - 1).postln; // highest possible id
 
-// refused for different reasons
+// refuses for different reasons
 s.clientID = \abc; // illegal
 s.clientID = -1;
-s.clientID = 33;
+s.clientID = 32;
 
 
 // test lots of remote clients:
 s.options.maxLogins = 200;
-s.clientID = 100;
-s.bufferAllocator.dump;
-s.audioBusAllocator.dump;
+s.clientID = 200.rand;
 
-s.nodeAllocator ...
 
-2 ** 30 / 1000
-
-// back to default
-s.options.maxLogins = 32; s.clientID = 1;
+// back to 32
+s.options.maxLogins = 32; s.clientID = 0;
 s.boot;
 s.queryAllNodes; // default group nodeID is clientID
-s.clientID;
 
-
-s.makeWindow;
+s.makeWindow; s.window.alwaysOnTop_(true);
 s.volume.volume_(-3);
 s.scope;
 s.queryAllNodes; // default group nodeID is clientID
@@ -62,7 +54,7 @@ s.defaultGroup.queryTree; // query just my group
 // three ways to make sound, all go to s.defaultGroup, 1
 x = { Saw.ar(330) * 0.1 }.play(s);
 s.queryAllNodes;
-e = (amp: 0.2, dur: inf).play;
+e = (amp: 0.2, dur: inf, group: 1).play;
 s.queryAllNodes;
 Ndef(\noyz, { BrownNoise.ar([0.1, 0.1]) }).play;
 s.queryAllNodes;
@@ -73,17 +65,27 @@ e.release;
 x.free;
 Ndef(\noyz).end;
 
-// now fake being on a remote client by creating
+// first private audio bus
+Ndef(\noyz).bus;
+
+/*
+// Ndef(\noyz).end; line posts this - find cause and remove:
+FAILURE IN SERVER /n_set Node 1003 not found
+FAILURE IN SERVER /n_free Node 1003 not found
+*/
+
+// now simulate a remote client by creating
 // a second server object, as if it were remote:
-r = Server.remote(\pseudo12, s.addr, s.options, 12);
+// give it a clientID by hand to test:
+r = Server.remote(\pseudo12, s.addr, s.options.copy, 12);
 r.defaultGroup; // group 12, like clientID
-s.queryAllNodes; // group 12 present on server
+r.queryAllNodes; // group 12 present on server
 
+r.boot; // reports already running
+n = NodeProxy.audio(r, 2);
+n.bus; // bus alloc is 4 private buses + 384 offset
 
-r.boot;	// don't need to boot, reports -> already running
-		// usually one cannot boot a really remote server
-
-r.makeWindow;
+r.makeWindow; r.window.alwaysOnTop_(true);
 	// window shows same data as s.window,
 	// except volume is not synced
 // Q: should volume move to defaultGroup, not rootnode?
@@ -99,18 +101,25 @@ y = { Saw.ar * 0.1 }.play(r);
 r.queryAllNodes;
 e = (amp: 0.2, dur: inf, server: r).play;
 r.queryAllNodes;
-// Ndef goes to the wrong group - why?
-Ndef(\noyz -> r.name, { Dust.ar([20, 20]) }).play;
+// Ndef always goes to group 1 - find where that happens.
+n = Ndef(\noyz -> r.name);
+n.play;
+n.bus;
+
+n.source = { Dust.ar([20, 20]) };
 s.queryAllNodes;
+
+// check what these are
+n.parentGroup; // server defaultGroup
+n.group; // proxy's own group
 
 // compare nodes in the two defaultGroups
 s.defaultGroup.queryTree;
 r.defaultGroup.queryTree;
-
 // turn them off again
 e.release;
-x.free;
-Ndef(\noyz).end;
+y.free;
+Ndef(\noyz -> r.name).end;
 s.queryAllNodes;
 
 // buffers work on either server
@@ -124,3 +133,4 @@ b = Buffer.read(r, p);
 b.play;
 s.queryAllNodes;
 ::
+
