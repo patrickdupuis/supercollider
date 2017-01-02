@@ -351,23 +351,40 @@ Server {
 	}
 
 	initTree {
-		nodeAllocator = NodeIDAllocator(clientID, options.initialNodeID);
+		nodeAllocator = NodeIDAllocator(
+			clientID,
+			options.initialNodeID,
+			options.maxLogins
+		);
+
 		this.sendMsg("/g_new", defaultGroup.nodeID, 0, 0);
 		tree.value(this);
 		ServerTree.run(this);
 	}
 
-	/* id allocators */
-
 	clientID_ { |val|
+
+		if (clientID == val) { ^this };
+
 		if(val.isInteger.not) {
-			"Server % couldn't set client id to: %".format(name, val.asCompileString).warn;
+			"Server % couldn't set client id to: %"
+			.format(name, val.asCompileString).warn;
 			^this
 		};
-		if(clientID != val) {
-			clientID = val;
-			this.newAllocators;
-		}
+		// must be within 0 and maxLogins - 1
+		if (val < 0 or: { val >= options.maxLogins }) {
+			"Server % couldn't set clientID to: % - out of range %."
+			.format(this, val, [1, options.maxLogins]).warn;
+			^this
+		};
+		clientID = val;
+		"Server % changed clientID to: % - making new allocators.\n"
+		.postf(this, clientID);
+		this.newAllocators;
+
+		// defaultGroups get nodeIDs from 1 .. maxLogins
+		defaultGroup = Group.basicNew(this, clientID);
+		this.initTree;
 	}
 
 	newAllocators {
