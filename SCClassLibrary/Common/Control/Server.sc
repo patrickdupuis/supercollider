@@ -2,8 +2,8 @@ ServerOptions {
 	// order of variables is important here. Only add new instance variables to the end.
 	var <numAudioBusChannels=1024;
 	var <>numControlBusChannels=16384;
-	var <numInputBusChannels=2;
-	var <numOutputBusChannels=2;
+	var <>numInputBusChannels=2;
+	var <>numOutputBusChannels=2;
 	var <>numBuffers=1026;
 
 	var <>maxNodes=1024;
@@ -38,8 +38,6 @@ ServerOptions {
 	var <>threads = nil; // for supernova
 	var <>useSystemClock = false;  // for supernova
 
-	var <numPrivateAudioBusChannels=112;
-
 	var <>reservedNumAudioBusChannels = 0;
 	var <>reservedNumControlBusChannels = 0;
 	var <>reservedNumBuffers = 0;
@@ -52,7 +50,6 @@ ServerOptions {
 	var <>recSampleFormat="float";
 	var <>recChannels = 2;
 	var <>recBufSize = nil;
-
 
 	device {
 		^if(inDevice == outDevice) {
@@ -71,7 +68,7 @@ ServerOptions {
 		o = if(protocol == \tcp, " -t ", " -u ");
 		o = o ++ port;
 
-		o = o ++ " -a " ++ (numPrivateAudioBusChannels + numInputBusChannels + numOutputBusChannels) ;
+		o = o ++ " -a " ++ numAudioBusChannels;
 
 		if (numControlBusChannels != 16384, {
 			o = o ++ " -c " ++ numControlBusChannels;
@@ -120,8 +117,7 @@ ServerOptions {
 		});
 		if ((thisProcess.platform.name!=\osx) or: {inDevice == outDevice})
 		{
-			if (inDevice.notNil,
-			{
+			if (inDevice.notNil, {
 				o = o ++ " -H %".format(inDevice.quote);
 			});
 		}
@@ -161,37 +157,17 @@ ServerOptions {
 		^o
 	}
 
-	firstPrivateBus { // after the outs and ins
+	numPublicAudioBusChannels {
 		^numOutputBusChannels + numInputBusChannels
 	}
 
-	bootInProcess {
-		_BootInProcessServer
-		^this.primitiveFailed
+	numPrivateAudioBusChannels {
+		^numAudioBusChannels - this.numPublicAudioBusChannels
 	}
 
-	numPrivateAudioBusChannels_ { |numChannels = 112|
-		numPrivateAudioBusChannels = numChannels;
-		this.recalcChannels;
-	}
-
-	numAudioBusChannels_ { |numChannels=1024|
-		numAudioBusChannels = numChannels;
-		numPrivateAudioBusChannels = numAudioBusChannels - numInputBusChannels - numOutputBusChannels;
-	}
-
-	numInputBusChannels_ { |numChannels=8|
-		numInputBusChannels = numChannels;
-		this.recalcChannels;
-	}
-
-	numOutputBusChannels_ { |numChannels=8|
-		numOutputBusChannels = numChannels;
-		this.recalcChannels;
-	}
-
-	recalcChannels {
-		numAudioBusChannels = numPrivateAudioBusChannels + numInputBusChannels + numOutputBusChannels;
+	// bus index after the hardware outs and ins
+	firstPrivateBus {
+		^this.numPublicAudioBusChannels
 	}
 
 	*prListDevices {
