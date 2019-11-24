@@ -32,9 +32,7 @@
     }, 
     {
       "test": "*", 
-      "suite": "TestMixedBundleTester",
-      "skip": true,
-      "skipReason": "Unidentified UnitTest bug (FIXME)"
+      "suite": "TestMixedBundleTester"
     }, 
     {
       "test": "*", 
@@ -71,34 +69,6 @@
     {
       "suite": "TestUnitTest", "test": "test_bootServer", 
       "skip": true, "skipReason": "No server support on travis"
-    }, 
-    {
-      "test": "test_sendBundle50", 
-      "suite": "TestNetAddr", 
-      "skipReason": "No server support on travis", 
-      "skip": true
-    }, 
-    {
-      "test": "test_send", 
-      "suite": "TestMixedBundleTester", 
-      "skipReason": "No server support on travis", 
-      "skip": true
-    }, 
-    {
-      "test": "test_findPreparationMessage", 
-      "suite": "TestMixedBundleTester", 
-      "skipReason": "No server support on travis", 
-      "skip": true
-    }, 
-    {
-      "suite": "TestMixedBundleTester", "test": "test_defNames",
-      "skip": true, "skipReason": "Unidentified UnitTest bug"
-    },
-    {
-      "test": "test_prepare", 
-      "suite": "TestOSCBundle", 
-      "skipReason": "No server support on travis", 
-      "skip": true
     }
   ]
 }
